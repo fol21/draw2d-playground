@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+
 module.exports = {
     entry:
     [
@@ -19,4 +20,5 @@ module.exports = {
         "window.jQuery":"jquery"  
       }),
     ],
+    devtool: 'source-map',
 };

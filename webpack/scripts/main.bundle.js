@@ -94962,66 +94962,125 @@ var jquery_default = /*#__PURE__*/__webpack_require__.n(jquery);
 var jquery_ui = __webpack_require__(555);
 // EXTERNAL MODULE: ./node_modules/draw2d/dist/draw2d.js
 var draw2d = __webpack_require__(546);
-;// CONCATENATED MODULE: ./app/scripts/util/svg/svg-utils.js
-function createSvg() {
-    // Store the SVG namespace for easy reuse.
-    const svgns = 'http://www.w3.org/2000/svg';
+;// CONCATENATED MODULE: ./app/scripts/connection/gradient.js
+class Gradient {
 
-    // Create <svg>, <defs>, <linearGradient> and <rect> elements using createElementNS to apply the SVG namespace.
-    // (https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS)
-    return svg = document.createElementNS(svgns, 'svg'); 
-}
+    /**
+     * @typedef {Object} Stop
+     * @property {number} offset
+     * @property {string} colorString
+     * @property {number} [opacity]
+     *
+     * @export
+     * @param {string} id
+     * @param {number[]} startXY
+     * @param {number[]} endXY
+     * @param {Stop[]} stops
+     * @param {string} [defaultColor]
+     */
+    constructor(id, startXY=[0,0], endXY=[100,0], stops, defaultColor=null)
+    {
+        this.id = id;
+        this.startXY = startXY;
+        this.endXY = endXY;
+        this.stops = stops || [{colorString: '#000', offset: 100}];
+        this.defaultColor = defaultColor || stops[0].colorString;
 
-function createSvgDefs() {
-    // Store the SVG namespace for easy reuse.
-    const svgns = 'http://www.w3.org/2000/svg';
+        this.element = this._createGradient(this.id, this.startXY, this.endXY, this.stops);
+        
+    }
 
-    // Create <svg>, <defs>, <linearGradient> and <rect> elements using createElementNS to apply the SVG namespace.
-    // (https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS)
-    return document.createElementNS(svgns, 'defs');
-}
-/**
- * @typedef {Object} Stop
- * @property {number} offset
- * @property {string} colorString
- * @property {number} [opacity]
- *
- * @export
- * @param {string} id
- * @param {number[]} startXY
- * @param {number[]} endXY
- * @param {Stop[]} stops
- */
-function createSvgLinearGradient(id, startXY, endXY, stops) {
-    // Store the SVG namespace for easy reuse.
-    const svgns = 'http://www.w3.org/2000/svg';
+     /**
+     * @export
+     * @param {string} id
+     * @param {number[]} startXY
+     * @param {number[]} endXY
+     * @param {Stop[]} stops
+     */
+    _createGradient(id, startXY, endXY, stops)
+    {
+        
+        const svgns = 'http://www.w3.org/2000/svg';
+        // Create <svg>, <defs>, <linearGradient> and <rect> elements using createElementNS to apply the SVG namespace.
+        // (https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS)
+        const gradient = document.createElementNS(svgns, 'linearGradient');
 
-    // Create <svg>, <defs>, <linearGradient> and <rect> elements using createElementNS to apply the SVG namespace.
-    // (https://developer.mozilla.org/en-US/docs/Web/API/Document/createElementNS)
-    const gradient = document.createElementNS(svgns, 'linearGradient');
-
-    gradient.setAttribute('id', '' + id);
-    gradient.setAttribute('x1', '' + startXY[0] + '%');
-    gradient.setAttribute('y1', '' + startXY[1] + '%');
-    gradient.setAttribute('x2', '' + endXY[0] + '%');
-    gradient.setAttribute('y2', '' + endXY[1] + '%');
+        gradient.setAttribute('id', '' + id);
+        gradient.setAttribute('x1', '' + startXY[0] + '%');
+        gradient.setAttribute('y1', '' + startXY[1] + '%');
+        gradient.setAttribute('x2', '' + endXY[0] + '%');
+        gradient.setAttribute('y2', '' + endXY[1] + '%');
 
     // Parses an array of stop information and appends <stop> elements to the <linearGradient>
-    for (var i = 0, length = stops.length; i < length; i++) {
-        // Create a <stop> element and set its offset based on the position of the for loop.
-        var stop = document.createElementNS(svgns, 'stop');
-        stop.setAttribute('offset', "" + stops[i].offset + "%");
-        stop.setAttribute('stop-color', stops[i].colorString);
-        stop.setAttribute('stop-opacity', "" + stops[i].offset || 1);
+        for (var i = 0, length = stops.length; i < length; i++) {
+            // Create a <stop> element and set its offset based on the position of the for loop.
+            var stop = document.createElementNS(svgns, 'stop');
+            stop.setAttribute('offset', "" + stops[i].offset + "%");
+            stop.setAttribute('stop-color', stops[i].colorString);
+            stop.setAttribute('stop-opacity', "" + stops[i].offset || 1);
 
-        // Add the stop to the <lineargradient> element.
-        gradient.appendChild(stop);
+            // Add the stop to the <lineargradient> element.
+            gradient.appendChild(stop);
+        }
+        return gradient;
     }
-    return gradient;
 }
-
-;// CONCATENATED MODULE: ./app/scripts/main.js
+;// CONCATENATED MODULE: ./app/scripts/connection/gradient-connection.js
 /* provided dependency */ var $ = __webpack_require__(755);
+
+
+
+
+class GradientConnection extends draw2d.Connection.extend({
+    NAME: "GradientConnection",
+
+    init: function( attr, setter, getter) {
+        this._super(attr, setter, getter)
+    }
+})
+{
+
+    /**
+     *
+     *
+     * @param {Gradient | String | draw2d.util.Color } color
+     * @memberof GradientConnection
+     */
+    setColor(color)
+    {
+        if(color instanceof Gradient)
+        {
+            if(!($(`#${color.id}`).length))
+            {
+                if(this.getCanvas()) {
+                    this.getCanvas().paper.canvas.getElementsByTagName('defs')[0].appendChild(color.element);
+                    $(this.getShapeElement().node).attr('stroke', `url(#${color.id}`);
+                } else {
+                    const cb = (emitter) => {
+                        emitter.getCanvas().paper.canvas.getElementsByTagName('defs')[0].appendChild(color.element);
+                        $(emitter.getShapeElement().node).attr('stroke', `url(#${color.id}`);
+                    };
+                    this.on('added', (emitter => {
+                        cb(emitter);
+                        emitter.off(cb);
+                    }));
+                }
+            } else {
+                $(this.getShapeElement().node).attr('stroke', `url(#${color.id}`);
+            }
+            const lc = color.defaultColor ? color.defaultColor : '#000';
+            this.lineColor = new draw2d.util.Color(new draw2d.util.Color(lc));
+            this.fireEvent("change:color",{value:this.lineColor});
+        }
+        else {
+            super.setColor(color);
+        }
+        return this;
+    }
+}
+;// CONCATENATED MODULE: ./app/scripts/main.js
+
+
 
 
 
@@ -95034,19 +95093,21 @@ jquery_default()(window).ready(function () {
 
     const canvas = new draw2d.Canvas("gfx_holder");
     window.canvas = canvas;
-    console.log(canvas.paper);
-    canvas.paper.canvas.getElementsByTagName('defs')[0].appendChild(createSvgLinearGradient(
+    const grad1 = new Gradient(
         'grad1',
         [0,0],
         [100,0],
-        [{colorString: '#47D4E6', offset: 50}, {colorString: 'rgb(255,0,0)', offset: 50}] 
-    ));
-    canvas.paper.canvas.getElementsByTagName('defs')[0].appendChild(createSvgLinearGradient(
+        [{colorString: '#47D4E6', offset: 50}, {colorString: 'rgb(255,0,0)', offset: 50}],
+        '#47D4E6' 
+    );
+    const grad2 = new Gradient(
         'grad2',
         [0,0],
         [100,0],
-        [{colorString: 'rgb(255,0,0)', offset: 50}, {colorString: '#47D4E6', offset: 50}] 
-    ));
+        [{colorString: 'rgb(255,0,0)', offset: 50}, {colorString: '#47D4E6', offset: 50}],
+        '#47D4E6'
+    );
+        
 
     const start = new draw2d.shape.node.Start();
     const end   = new draw2d.shape.node.End();
@@ -95057,7 +95118,7 @@ jquery_default()(window).ready(function () {
     
     // Create a Connection and connect the Start and End node
     //
-    var c = new draw2d.Connection();
+    var c = new GradientConnection();
     
     
     // Set the endpoint decorations for the connection
@@ -95071,8 +95132,9 @@ jquery_default()(window).ready(function () {
     
     // and finally add the connection to the canvas
     canvas.add(c);
-    window.el = c.getShapeElement().node;
-    $(c.getShapeElement().node).attr('stroke', "url(#grad2)");
+    c.setColor(grad1);
+    c.setColor(grad2);
+    // c.setColor('#47D4E6');
 });
 
 
@@ -95080,3 +95142,4 @@ jquery_default()(window).ready(function () {
 }();
 /******/ })()
 ;
+//# sourceMappingURL=main.bundle.js.map

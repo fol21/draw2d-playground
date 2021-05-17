@@ -1,6 +1,7 @@
 // generated on 2021-05-16 using generator-webapp 4.0.0-8
 const { src, dest, watch, series, parallel, lastRun } = require('gulp');
 const gulpLoadPlugins = require('gulp-load-plugins');
+const sourcemaps = require('gulp-sourcemaps');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 const Modernizr = require('modernizr');
@@ -38,14 +39,23 @@ function styles() {
     .pipe(server.reload({stream: true}));
 };
 
-function scripts() {
-  return src('webpack/scripts/main.bundle.js', {
+function pack() {
+  return src('webpack/scripts/**/*.js', {
     sourcemaps: !isProd,
   })
     .pipe($.plumber())
     .pipe(dest('.tmp/scripts', {
-      sourcemaps: !isProd,
+      sourcemaps: !isProd ? '.' : !isProd,
     }))
+    .pipe(server.reload({stream: true}));
+};
+
+function scripts() {
+  return src('app/scripts/**/*.js')
+    .pipe($.plumber())
+    .pipe($.if(!isProd, sourcemaps.init()))
+    .pipe($.if(!isProd, sourcemaps.write('.')))
+    .pipe(dest('.tmp/scripts'))
     .pipe(server.reload({stream: true}));
 };
 
@@ -144,6 +154,7 @@ const build = series(
   clean,
   parallel(
     lint,
+    pack,
     series(parallel(styles, scripts, modernizr), html),
     images,
     fonts,
@@ -172,6 +183,7 @@ function startAppServer() {
 
   watch('app/styles/**/*.scss', styles);
   watch('app/scripts/**/*.js', scripts);
+  watch('webpack/scripts/**/*.js', pack);
   watch('modernizr.json', modernizr);
   watch('app/fonts/**/*', fonts);
 }
@@ -210,11 +222,11 @@ function startDistServer() {
 
 let serve;
 if (isDev) {
-  serve = series(clean, parallel(styles, scripts, modernizr, fonts), startAppServer);
+  serve = series(clean, pack, parallel(styles, scripts, modernizr, fonts), startAppServer);
 } else if (isTest) {
-  serve = series(clean, scripts, startTestServer);
+  serve = series(clean, pack, scripts, startTestServer);
 } else if (isProd) {
-  serve = series(build, startDistServer);
+  serve = series(build, pack, startDistServer);
 }
 
 exports.serve = serve;
